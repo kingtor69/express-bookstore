@@ -72,6 +72,31 @@ describe('Test GET routes', () => {
         expect(book.title).toBe(garp.title);
     });
 
+    test("Try to GET a book without a valid ISBN", async () => {
+        const result = await request(app).get(`/books/${badBook.isbn}`);
+        expect(result.statusCode).toBe(404);
+    });
+
+    afterEach(async () => {
+        await db.query (
+            `DELETE FROM books`
+        );
+    });
+});
+
+describe("Test POST routes", () => {
+    test("Add a new book to the database", async() => {
+        const result = await request(app).post(`/books`).send(garp);
+        const book = result.body.book;
+        expect(result.statusCode).toBe(201);
+        expect(book.title).toBe(garp.title);
+    });
+
+    test("Try to add bad data to the database", async() => {
+        const result = await request(app).post(`/books`).send(badBook);
+        expect(result.statusCode).toBe(400);
+    })
+
     afterEach(async () => {
         await db.query (
             `DELETE FROM books`
