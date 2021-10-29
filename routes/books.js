@@ -49,11 +49,22 @@ router.post("/", async function (req, res, next) {
 
 router.put("/:isbn", async function (req, res, next) {
   try {
-    const book = await Book.update(req.params.isbn, req.body);
+    const oldBook = await Book.findOne(req.params.isbn);
+    const newBook = Object.create(oldBook);
+    for (let key of Object.keys(req.body)) {
+        newBook[key] = req.body[key];
+    };
+    const validation = jsonschema.validate(newBook, bookSchema)
+    if (!validation.valid) {
+      const listOfErrors = validation.errors.map(e => e.stack);
+      const err = new ExpressError(listOfErrors, 400);
+      return next(err);
+    };
+    const book = await Book.update(req.params.isbn, newBook);
     return res.json({ book });
   } catch (err) {
     return next(err);
-  }
+  };
 });
 
 /** DELETE /[isbn]   => {message: "Book deleted"} */

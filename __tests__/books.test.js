@@ -92,7 +92,7 @@ describe("Test POST routes", () => {
         expect(book.title).toBe(garp.title);
     });
 
-    test("Try to add bad data to the database", async() => {
+    test("Attempt to add bad data to the database should return errors", async() => {
         const result = await request(app).post(`/books`).send(badBook);
         expect(result.statusCode).toBe(400);
     })
@@ -103,6 +103,69 @@ describe("Test POST routes", () => {
         );
     });
 });
+
+describe("Test PUT route", () => {
+    beforeEach(async() => {
+        const { isbn, amazon_url, author, language, pages, publisher, title, year } = garp;
+        await db.query (
+            `INSERT INTO books
+            (isbn, amazon_url, author, language, pages, publisher, title, year)
+            VALUES ( $1, $2, $3, $4, $5, $6, $7, $8 )`,
+            [ isbn, amazon_url, author, language, pages, publisher, title, year ]
+        );
+    });
+
+    test("Update book information", async() => {
+        const carpTitle = {title: "The World According to Carps"}
+        const result = await request(app).put(`/books/${garp.isbn}`).send(carpTitle);
+        expect(result.statusCode).toBe(200);
+        expect(result.body.book).toEqual(
+            expect.objectContaining(carpTitle),
+            expect.objectContaining(garp.isbn),
+            expect.objectContaining(garp.author)
+        );
+    });
+
+    test("Update with no data should return book as it was", async () => {
+        const result = await request(app).put(`/books/${garp.isbn}`).send({});
+        expect(result.statusCode).toBe(200);
+        expect(result.body.book).toEqual(garp);
+    });
+
+    test("Update with invalid key should return book as it was", async () => {
+        const invalidKey = {banana: "yummy"};
+        const result = await request(app).put(`/books/${garp.isbn}`).send(invalidKey);
+        expect(result.statusCode).toBe(200);
+        expect(result.body.book).toEqual(garp);
+    });
+
+    test("Update with incorrectly formatted values should return 400", async () => {
+        const invalidKey = {year: "last"};
+        const result = await request(app).put(`/books/${garp.isbn}`).send(invalidKey);
+        expect(result.statusCode).toBe(400);
+    });
+
+    test("Update with bad year should return 400", async () => {
+        const badYear = {year: -2020};
+        const result = await request(app).put(`/books/${garp.isbn}`).send(badYear);
+        expect(result.statusCode).toBe(400);
+    });
+
+    test("Update with zero or negative number of pages should return 400", async () => {
+        const zeroPages = {pages: 0};
+        const negPages = {pages: -128};
+        const resultZero = await request(app).put(`/books/${garp.isbn}`).send(zeroPages);
+        const resultNeg = await request(app).put(`/books/${garp.isbn}`).send(negPages);
+        expect(resultZero.statusCode).toBe(400);
+        expect(resultNeg.statusCode).toBe(400);
+    })
+
+    afterEach(async() => {
+        await db.query (
+            `DELETE FROM books`
+        );
+    });
+})
 
 afterAll(async () => {
     await db.end();
